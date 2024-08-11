@@ -7,7 +7,7 @@ const schema = a.schema({
       description: a.string(),
       image: a.string(),
     })
-    .authorization((allow) => [allow.owner()]),
+    .authorization(allow => [allow.owner()]),
 });
 
 export type Schema = ClientSchema<typeof schema>;
@@ -16,5 +16,8 @@ export const data = defineData({
   schema,
   authorizationModes: {
     defaultAuthorizationMode: 'userPool',
+    apiKeyAuthorizationMode: {
+      expiresInDays: 5,
+    },
   },
 });

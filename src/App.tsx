@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, FormEvent } from "react";
 import {
   Authenticator,
   Button,
@@ -17,17 +17,17 @@ import { getUrl } from "aws-amplify/storage";
 import { uploadData } from "aws-amplify/storage";
 import { generateClient } from "aws-amplify/data";
 import outputs from "../amplify_outputs.json";
+import type { Schema } from "../amplify/data/resource";
 /**
  * @type {import('aws-amplify/data').Client<import('../amplify/data/resource').Schema>}
  */
 
 Amplify.configure(outputs);
-const client = generateClient({
-  authMode: "userPool",
-});
+const client = generateClient<Schema>();
+type Note = Schema["Note"]["type"];
 
 export default function App() {
-  const [notes, setNotes] = useState([]);
+  const [notes, setNotes] = useState<Array<Note>>([]);
 
   useEffect(() => {
     fetchNotes();
@@ -36,46 +36,51 @@ export default function App() {
   async function fetchNotes() {
     const { data: notes } = await client.models.Note.list();
     await Promise.all(
-      notes.map(async (note) => {
+      notes.map(async (note: Note) => {
         if (note.image) {
           const linkToStorageFile = await getUrl({
             path: ({ identityId }) => `media/${identityId}/${note.image}`,
           });
           console.log(linkToStorageFile.url);
-          note.image = linkToStorageFile.url;
+          note.image = String(linkToStorageFile.url);
         }
         return note;
       })
     );
-    console.log(notes);
+    console.log("notes", notes);
     setNotes(notes);
   }
 
-  async function createNote(event) {
+  async function createNote(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
-    const form = new FormData(event.target);
-    console.log(form.get("image").name);
+    const eventTarget = event.target as HTMLFormElement;
+    const form = new FormData(eventTarget);
+    const imageFile = form.get("image") as File;
+    console.log(imageFile.name);
 
     const { data: newNote } = await client.models.Note.create({
-      name: form.get("name"),
-      description: form.get("description"),
-      image: form.get("image").name,
+      name: form.get("name") as string,
+      description: form.get("description") as string,
+      image: imageFile.name as string,
     });
 
-    console.log(newNote);
-    if (newNote.image)
-      if (newNote.image)
-        await uploadData({
-          path: ({ identityId }) => `media/${identityId}/${newNote.image}`,
-
-          data: form.get("image"),
-        }).result;
+    console.log("newNote", newNote);
+    if (newNote && newNote.image) {
+      if (newNote.image) {
+        if (imageFile) {
+          await uploadData({
+            path: ({ identityId }) => `media/${identityId}/${newNote.image}`,
+            data: imageFile,
+          }).result;
+        }
+      }
+    }
 
     fetchNotes();
-    event.target.reset();
+    eventTarget.reset();
   }
 
-  async function deleteNote({ id }) {
+  async function deleteNote(id: string) {
     const toBeDeletedNote = {
       id: id,
     };
@@ -83,7 +88,7 @@ export default function App() {
     const { data: deletedNote } = await client.models.Note.delete(
       toBeDeletedNote
     );
-    console.log(deletedNote);
+    console.log("deletedNote", deletedNote);
 
     fetchNotes();
   }
@@ -158,19 +163,19 @@ export default function App() {
                 className="box"
               >
                 <View>
-                  <Heading level="3">{note.name}</Heading>
+                  <Heading>{note.name}</Heading>
                 </View>
                 <Text fontStyle="italic">{note.description}</Text>
                 {note.image && (
                   <Image
                     src={note.image}
-                    alt={`visual aid for ${notes.name}`}
+                    alt={`visual aid for ${note.name}`}
                     style={{ width: 400 }}
                   />
                 )}
                 <Button
                   variation="destructive"
-                  onClick={() => deleteNote(note)}
+                  onClick={() => deleteNote(note.id)}
                 >
                   Delete note
                 </Button>
