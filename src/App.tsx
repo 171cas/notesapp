@@ -27,6 +27,10 @@ const client = generateClient<Schema>();
 type Note = Schema["Note"]["type"];
 
 export default function App() {
+  client.queries.sayHello({
+    name: "Amplify",
+  });
+
   const [notes, setNotes] = useState<Array<Note>>([]);
 
   useEffect(() => {
@@ -104,6 +108,16 @@ export default function App() {
           width="70%"
           margin="0 auto"
         >
+          <button
+            onClick={async () => {
+              const { data: test } = await client.queries.sayHello({
+                name: "Amplify",
+              });
+              console.log("test", test);
+            }}
+          >
+            Trigger
+          </button>
           <Heading level={1}>My Notes App</Heading>
           <View as="form" margin="3rem 0" onSubmit={createNote}>
             <Flex
